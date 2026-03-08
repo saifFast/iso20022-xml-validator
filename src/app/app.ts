@@ -10,5 +10,5 @@ import { XmlValidatorComponent } from './components/xml-validator.component';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class App {
-  protected readonly title = signal('xml-iso20022-ui');
+  protected readonly title = signal('');
 }
