@@ -1,0 +1,50 @@
+<div class="validator-container">
+  <h1>PACS.008 XML Validator</h1>
+  
+  <div class="input-section">
+    <div class="upload-box">
+      <h2>Upload XML File</h2>
+      <input 
+        type="file" 
+        accept=".xml"
+        (change)="onFileSelected($event)"
+        #fileInput
+      />
+    </div>
+
+    <div class="divider">OR</div>
+
+    <div class="paste-box">
+      <h2>Paste XML Content</h2>
+      <textarea 
+        [value]="xmlContent()"
+        (input)="onXmlContentChange($event)"
+        placeholder="Paste your XML content here..."
+        rows="10"
+      ></textarea>
+    </div>
+
+    <button (click)="validate()" [disabled]="!xmlContent()">
+      Validate XML
+    </button>
+
+    @if (validationResult()) {
+      <div class="results" [class.valid]="validationResult()!.isValid">
+        <h3>{{ validationResult()!.isValid ? '✓ Valid' : '✗ Invalid' }}</h3>
+        @if (validationResult()!.messageId) {
+          <p><strong>Message ID:</strong> {{ validationResult()!.messageId }}</p>
+        }
+        @if (validationResult()!.errors.length > 0) {
+          <div class="errors">
+            <h4>Issues Found:</h4>
+            <ul>
+              @for (error of validationResult()!.errors; track $index) {
+                <li [class]="error.level">{{ error.message }}</li>
+              }
+            </ul>
+          </div>
+        }
+      </div>
+    }
+  </div>
+</div>

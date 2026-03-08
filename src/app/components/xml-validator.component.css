@@ -1,0 +1,72 @@
+.validator-container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.input-section {
+  margin: 20px 0;
+}
+
+.upload-box,
+.paste-box {
+  margin: 15px 0;
+  padding: 15px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+textarea {
+  width: 100%;
+  font-family: monospace;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 8px;
+}
+
+button {
+  padding: 10px 20px;
+  background: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+button:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+.results {
+  margin-top: 20px;
+  padding: 15px;
+  border-radius: 4px;
+  border-left: 4px solid #dc3545;
+}
+
+.results.valid {
+  border-left-color: #28a745;
+}
+
+.errors {
+  margin-top: 10px;
+}
+
+.errors li.error {
+  color: #dc3545;
+}
+
+.errors li.warning {
+  color: #ffc107;
+}
+
+.errors li.info {
+  color: #17a2b8;
+}
+
+.divider {
+  text-align: center;
+  margin: 20px 0;
+  color: #666;
+}
