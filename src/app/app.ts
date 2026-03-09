@@ -1,10 +1,9 @@
 import { Component, signal, ChangeDetectionStrategy } from '@angular/core';
-import { RouterOutlet } from '@angular/router';
 import { XmlValidatorComponent } from './components/xml-validator.component';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, XmlValidatorComponent],
+  imports: [XmlValidatorComponent],
   templateUrl: './app.html',
   styleUrl: './app.css',
   changeDetection: ChangeDetectionStrategy.OnPush

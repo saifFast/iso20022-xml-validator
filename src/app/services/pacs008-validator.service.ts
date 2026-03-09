@@ -16,13 +16,6 @@ export interface ValidationResult {
   totalAmount?: number;
 }
 
-interface GrpHdrData {
-  msgId?: string;
-  creDtTm?: string;
-  nbOfTxns?: number;
-  ctrlSum?: number;
-}
-
 @Injectable({
   providedIn: 'root'
 })
