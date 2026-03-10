@@ -1,97 +1,96 @@
 import { Injectable } from '@angular/core';
-
-export interface ValidationError {
-  level: 'error' | 'warning' | 'info';
-  message: string;
-  element?: string;
-  path?: string;
-}
-
-export interface ValidationResult {
-  isValid: boolean;
-  errors: ValidationError[];
-  messageId?: string;
-  creationDateTime?: string;
-  transactionCount?: number;
-  totalAmount?: number;
-}
+import { ValidationError } from './ValidationError';
+import { ValidationResult } from './ValidationResult';
 
 @Injectable({
   providedIn: 'root'
 })
 export class Pacs008ValidatorService {
-  
   private readonly REQUIRED_ELEMENTS = ['GrpHdr', 'PmtInf'];
   private readonly ISO_CURRENCY_CODES = new Set([
     'USD', 'EUR', 'GBP', 'JPY', 'CHF', 'CAD', 'AUD', 'NZD', 'CNY', 'INR', 'BRL', 'RUB', 'MXN', 'SGD', 'HKD', 'NOK', 'SEK', 'DKK'
   ]);
   private readonly IBAN_PATTERN = /^[A-Z]{2}[0-9]{2}[A-Z0-9]{1,30}$/;
-  private readonly BIC_PATTERN = /^[A-Z0-9]{6,9}$/;
-  private readonly ISO8601_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
+  private readonly BIC_PATTERN = /^[A-Z0-9]{8}([A-Z0-9]{3})?$/;
+  private readonly ISO8601_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2})$/;
+  private readonly CURRENCY_CODE_PATTERN = /^[A-Z]{3}$/;
+  private readonly MAX_XML_SIZE_BYTES = 5 * 1024 * 1024; // align with upload limit
+  private readonly MAX_XML_DEPTH = 50;
 
   validate(xmlContent: string): ValidationResult {
     const errors: ValidationError[] = [];
 
-    // Check if XML is empty
     if (!xmlContent.trim()) {
-      errors.push({
-        level: 'error',
-        message: 'XML content is empty'
-      });
+      this.addError(errors, 'error', 'XML content is empty');
       return { isValid: false, errors };
     }
 
-    // Parse XML
+    if (xmlContent.length > this.MAX_XML_SIZE_BYTES) {
+      this.addError(errors, 'error', 'XML size exceeds allowed limit of 5MB');
+      return { isValid: false, errors };
+    }
+
     let xmlDoc: Document;
     try {
       const parser = new DOMParser();
       xmlDoc = parser.parseFromString(xmlContent, 'application/xml');
-      
+
       if (xmlDoc.getElementsByTagName('parsererror').length > 0) {
-        errors.push({
-          level: 'error',
-          message: 'XML Parsing Error: Invalid XML syntax',
-          element: xmlDoc.documentElement.textContent || 'Unknown'
-        });
+        this.addError(errors, 'error', 'XML Parsing Error: Invalid XML syntax', xmlDoc.documentElement.textContent || 'Unknown');
         return { isValid: false, errors };
       }
     } catch (e) {
-      errors.push({
-        level: 'error',
-        message: 'XML parsing error: ' + (e as Error).message
-      });
+      this.addError(errors, 'error', 'XML parsing error: ' + (e as Error).message);
       return { isValid: false, errors };
     }
 
-    // Validate structure and get metadata
+    const root = xmlDoc.documentElement;
+    if (this.getDepth(root) > this.MAX_XML_DEPTH) {
+      this.addError(errors, 'error', `XML nesting depth exceeds safe limit (${this.MAX_XML_DEPTH})`);
+      return { isValid: false, errors };
+    }
+
     const structureErrors = this.validateStructure(xmlDoc);
     errors.push(...structureErrors);
 
-    // Extract and validate GrpHdr
-    const grpHdr = xmlDoc.getElementsByTagName('GrpHdr')[0];
+    const grpHdr = this.getFirstElement(xmlDoc, 'GrpHdr');
     if (grpHdr) {
-      const grpHdrErrors = this.validateGrpHdr(grpHdr);
-      errors.push(...grpHdrErrors);
+      errors.push(...this.validateGrpHdr(grpHdr));
     }
 
-    // Validate PmtInf records
-    const pmtInfs = xmlDoc.getElementsByTagName('PmtInf');
-    if (pmtInfs.length > 0) {
-      for (let i = 0; i < pmtInfs.length; i++) {
-        const pmtErrors = this.validatePmtInf(pmtInfs[i], i);
-        errors.push(...pmtErrors);
-      }
-    }
+    const pmtInfs = this.getElements(xmlDoc, 'PmtInf');
+    pmtInfs.forEach((pmtInf, idx) => errors.push(...this.validatePmtInf(pmtInf, idx)));
 
-    // Validate CdtTrfTxInf records
-    const txnErrors = this.validateTransactions(xmlDoc);
-    errors.push(...txnErrors);
+    const txnResult = this.validateTransactions(xmlDoc);
+    errors.push(...txnResult.errors);
 
-    // Extract message metadata
     const messageId = this.extractText(xmlDoc, 'MsgId');
     const creationDateTime = this.extractText(xmlDoc, 'CreDtTm');
     const transactionCount = this.extractNumber(xmlDoc, 'NbOfTxns');
     const totalAmount = this.extractNumber(xmlDoc, 'CtrlSum');
+
+    if (transactionCount !== undefined && transactionCount !== txnResult.transactionCount) {
+      this.addError(
+        errors,
+        'warning',
+        `NbOfTxns declares ${transactionCount} but ${txnResult.transactionCount} transaction(s) found`,
+        'NbOfTxns',
+        'GrpHdr/NbOfTxns'
+      );
+    }
+
+    if (totalAmount !== undefined && txnResult.totalAmount !== undefined) {
+      const amountsMatch = Math.abs(totalAmount - txnResult.totalAmount) < 0.01;
+      if (!amountsMatch) {
+        this.addError(
+          errors,
+          'warning',
+          `CtrlSum declares ${totalAmount} but transaction sum is ${txnResult.totalAmount}`,
+          'CtrlSum',
+          'GrpHdr/CtrlSum'
+        );
+      }
+    }
 
     return {
       isValid: errors.filter(e => e.level === 'error').length === 0,
@@ -108,33 +107,20 @@ export class Pacs008ValidatorService {
     const root = xmlDoc.documentElement;
 
     if (!root) {
-      errors.push({
-        level: 'error',
-        message: 'No root element found'
-      });
+      this.addError(errors, 'error', 'No root element found');
       return errors;
     }
 
-    // Check if it's a PACS.008 message
     const isFIToFI = root.tagName.includes('FIToFICstmrCdtTrfInitn');
     const isDocument = root.tagName === 'Document';
 
     if (!isFIToFI && !isDocument) {
-      errors.push({
-        level: 'warning',
-        message: `Expected PACS.008 FIToFICstmrCdtTrfInitn, found: ${root.tagName}`,
-        element: root.tagName
-      });
+      this.addError(errors, 'warning', `Expected PACS.008 FIToFICstmrCdtTrfInitn, found: ${root.tagName}`, root.tagName);
     }
 
-    // Validate required root elements
     this.REQUIRED_ELEMENTS.forEach(elem => {
-      if (!xmlDoc.getElementsByTagName(elem).length) {
-        errors.push({
-          level: 'error',
-          message: `Required element missing: <${elem}>`,
-          element: elem
-        });
+      if (!this.getElements(xmlDoc, elem).length) {
+        this.addError(errors, 'error', `Required element missing: <${elem}>`, elem);
       }
     });
 
@@ -144,69 +130,32 @@ export class Pacs008ValidatorService {
   private validateGrpHdr(grpHdr: Element): ValidationError[] {
     const errors: ValidationError[] = [];
 
-    // Validate MsgId (mandatory, max 35 chars)
-    const msgId = grpHdr.getElementsByTagName('MsgId')[0]?.textContent;
+    const msgId = this.extractText(grpHdr, 'MsgId');
     if (!msgId) {
-      errors.push({
-        level: 'error',
-        message: 'GrpHdr/MsgId is mandatory',
-        element: 'MsgId',
-        path: 'GrpHdr/MsgId'
-      });
+      this.addError(errors, 'error', 'GrpHdr/MsgId is mandatory', 'MsgId', 'GrpHdr/MsgId');
     } else if (msgId.length > 35) {
-      errors.push({
-        level: 'error',
-        message: `MsgId exceeds maximum length of 35 characters (found: ${msgId.length})`,
-        element: 'MsgId'
-      });
+      this.addError(errors, 'error', `MsgId exceeds maximum length of 35 characters (found: ${msgId.length})`, 'MsgId', 'GrpHdr/MsgId');
     }
 
-    // Validate CreDtTm (mandatory, ISO8601 format)
-    const creDtTm = grpHdr.getElementsByTagName('CreDtTm')[0]?.textContent;
+    const creDtTm = this.extractText(grpHdr, 'CreDtTm');
     if (!creDtTm) {
-      errors.push({
-        level: 'error',
-        message: 'GrpHdr/CreDtTm is mandatory',
-        element: 'CreDtTm'
-      });
-    } else if (!this.ISO8601_PATTERN.test(creDtTm)) {
-      errors.push({
-        level: 'error',
-        message: `Invalid date format. Expected ISO8601 (YYYY-MM-DDTHH:MM:SSZ), got: ${creDtTm}`,
-        element: 'CreDtTm'
-      });
+      this.addError(errors, 'error', 'GrpHdr/CreDtTm is mandatory', 'CreDtTm', 'GrpHdr/CreDtTm');
+    } else if (!this.ISO8601_PATTERN.test(creDtTm) || isNaN(Date.parse(creDtTm))) {
+      this.addError(errors, 'error', `Invalid date format. Expected ISO8601 with timezone, got: ${creDtTm}`, 'CreDtTm', 'GrpHdr/CreDtTm');
     }
 
-    // Validate NbOfTxns (mandatory, must be positive)
-    const nbOfTxns = grpHdr.getElementsByTagName('NbOfTxns')[0]?.textContent;
+    const nbOfTxns = this.extractText(grpHdr, 'NbOfTxns');
     if (!nbOfTxns) {
-      errors.push({
-        level: 'error',
-        message: 'GrpHdr/NbOfTxns is mandatory',
-        element: 'NbOfTxns'
-      });
+      this.addError(errors, 'error', 'GrpHdr/NbOfTxns is mandatory', 'NbOfTxns', 'GrpHdr/NbOfTxns');
     } else if (isNaN(Number(nbOfTxns)) || Number(nbOfTxns) <= 0) {
-      errors.push({
-        level: 'error',
-        message: `NbOfTxns must be a positive number, got: ${nbOfTxns}`,
-        element: 'NbOfTxns'
-      });
+      this.addError(errors, 'error', `NbOfTxns must be a positive number, got: ${nbOfTxns}`, 'NbOfTxns', 'GrpHdr/NbOfTxns');
     }
 
-    // Validate CtrlSum (mandatory, must be non-negative)
-    const ctrlSum = grpHdr.getElementsByTagName('CtrlSum')[0]?.textContent;
+    const ctrlSum = this.extractText(grpHdr, 'CtrlSum');
     if (!ctrlSum) {
-      errors.push({
-        level: 'error',
-        message: 'GrpHdr/CtrlSum is mandatory',
-        element: 'CtrlSum'
-      });
+      this.addError(errors, 'error', 'GrpHdr/CtrlSum is mandatory', 'CtrlSum', 'GrpHdr/CtrlSum');
     } else if (isNaN(Number(ctrlSum)) || Number(ctrlSum) < 0) {
-      errors.push({
-        level: 'error',
-        message: `CtrlSum must be a non-negative number, got: ${ctrlSum}`,
-        element: 'CtrlSum'
-      });
+      this.addError(errors, 'error', `CtrlSum must be a non-negative number, got: ${ctrlSum}`, 'CtrlSum', 'GrpHdr/CtrlSum');
     }
 
     return errors;
@@ -216,150 +165,158 @@ export class Pacs008ValidatorService {
     const errors: ValidationError[] = [];
     const path = `PmtInf[${index + 1}]`;
 
-    // Validate PmtInfId (mandatory)
-    const pmtInfId = pmtInf.getElementsByTagName('PmtInfId')[0]?.textContent;
+    const pmtInfId = this.extractText(pmtInf, 'PmtInfId');
     if (!pmtInfId) {
-      errors.push({
-        level: 'error',
-        message: `${path}: PmtInfId is mandatory`,
-        element: 'PmtInfId',
-        path
-      });
+      this.addError(errors, 'error', `${path}: PmtInfId is mandatory`, 'PmtInfId', path);
     }
 
-    // Validate PmtMtd (mandatory)
-    const pmtMtd = pmtInf.getElementsByTagName('PmtMtd')[0]?.textContent;
+    const pmtMtd = this.extractText(pmtInf, 'PmtMtd');
     if (!pmtMtd) {
-      errors.push({
-        level: 'error',
-        message: `${path}: PmtMtd is mandatory`,
-        element: 'PmtMtd',
-        path
-      });
+      this.addError(errors, 'error', `${path}: PmtMtd is mandatory`, 'PmtMtd', path);
     } else if (!['TRF', 'CH', 'TRA'].includes(pmtMtd)) {
-      errors.push({
-        level: 'warning',
-        message: `${path}: Unusual PmtMtd value: ${pmtMtd}`,
-        element: 'PmtMtd',
-        path
-      });
+      this.addError(errors, 'warning', `${path}: Unusual PmtMtd value: ${pmtMtd}`, 'PmtMtd', path);
     }
 
-    // Validate NbOfTxns
-    const nbOfTxns = pmtInf.getElementsByTagName('NbOfTxns')[0]?.textContent;
+    const nbOfTxns = this.extractText(pmtInf, 'NbOfTxns');
     if (nbOfTxns && (isNaN(Number(nbOfTxns)) || Number(nbOfTxns) < 0)) {
-      errors.push({
-        level: 'warning',
-        message: `${path}: Invalid NbOfTxns: ${nbOfTxns}`,
-        element: 'NbOfTxns'
-      });
+      this.addError(errors, 'warning', `${path}: Invalid NbOfTxns: ${nbOfTxns}`, 'NbOfTxns', path);
     }
 
     return errors;
   }
 
-  private validateTransactions(xmlDoc: Document): ValidationError[] {
+  private validateTransactions(xmlDoc: Document): { errors: ValidationError[]; totalAmount?: number; transactionCount: number } {
     const errors: ValidationError[] = [];
-    const transactions = xmlDoc.getElementsByTagName('CdtTrfTxInf');
+    const transactions = this.getElements(xmlDoc, 'CdtTrfTxInf');
+    let totalAmount = 0;
 
     for (let i = 0; i < transactions.length; i++) {
       const txn = transactions[i];
       const path = `CdtTrfTxInf[${i + 1}]`;
 
-      // Validate EndToEndId
-      const endToEndId = txn.getElementsByTagName('EndToEndId')[0]?.textContent;
+      const endToEndId = this.extractText(txn, 'EndToEndId');
       if (!endToEndId) {
-        errors.push({
-          level: 'warning',
-          message: `${path}: EndToEndId should be provided`,
-          element: 'EndToEndId',
-          path
-        });
+        this.addError(errors, 'warning', `${path}: EndToEndId should be provided`, 'EndToEndId', path);
       }
 
-      // Validate Amount and Currency
-      const instdAmt = txn.getElementsByTagName('InstdAmt')[0];
+      const instdAmt = this.getFirstElement(txn, 'InstdAmt');
       if (instdAmt) {
         const amount = instdAmt.textContent;
         const currency = instdAmt.getAttribute('Ccy');
 
         if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
-          errors.push({
-            level: 'error',
-            message: `${path}: Invalid amount: ${amount}`,
-            element: 'InstdAmt',
-            path
-          });
+          this.addError(errors, 'error', `${path}: Invalid amount: ${amount}`, 'InstdAmt', path);
+        } else {
+          totalAmount += Number(amount);
         }
 
         if (!currency) {
-          errors.push({
-            level: 'error',
-            message: `${path}: Currency (Ccy) attribute is mandatory`,
-            element: 'InstdAmt',
-            path
-          });
+          this.addError(errors, 'error', `${path}: Currency (Ccy) attribute is mandatory`, 'InstdAmt', path);
+        } else if (!this.CURRENCY_CODE_PATTERN.test(currency)) {
+          this.addError(errors, 'error', `${path}: Invalid currency code format: ${currency}`, 'InstdAmt', path);
         } else if (!this.ISO_CURRENCY_CODES.has(currency)) {
-          errors.push({
-            level: 'warning',
-            message: `${path}: Non-standard currency code: ${currency}`,
-            element: 'InstdAmt',
-            path
-          });
+          this.addError(errors, 'warning', `${path}: Non-standard currency code: ${currency}`, 'InstdAmt', path);
         }
       }
 
-      // Validate Debtor IBAN
-      const dbtrIban = txn.querySelector('DbtrAcct Id IBAN')?.textContent;
-      if (dbtrIban && !this.IBAN_PATTERN.test(dbtrIban)) {
-        errors.push({
-          level: 'error',
-          message: `${path}: Invalid Debtor IBAN format: ${dbtrIban}`,
-          element: 'IBAN',
-          path: `${path}/DbtrAcct/IBAN`
-        });
+      const dbtrIban = this.getNestedText(txn, ['DbtrAcct', 'Id', 'IBAN']);
+      if (dbtrIban) {
+        const ibanIssue = this.validateIban(dbtrIban);
+        if (ibanIssue === 'format') {
+          this.addError(errors, 'error', `${path}: Invalid Debtor IBAN format: ${dbtrIban}`, 'IBAN', `${path}/DbtrAcct/IBAN`);
+        } else if (ibanIssue === 'checksum') {
+          this.addError(errors, 'warning', `${path}: Debtor IBAN checksum failed: ${dbtrIban}`, 'IBAN', `${path}/DbtrAcct/IBAN`);
+        }
       }
 
-      // Validate Creditor IBAN
-      const cdtrIban = txn.querySelector('CdtrAcct Id IBAN')?.textContent;
-      if (cdtrIban && !this.IBAN_PATTERN.test(cdtrIban)) {
-        errors.push({
-          level: 'error',
-          message: `${path}: Invalid Creditor IBAN format: ${cdtrIban}`,
-          element: 'IBAN',
-          path: `${path}/CdtrAcct/IBAN`
-        });
+      const cdtrIban = this.getNestedText(txn, ['CdtrAcct', 'Id', 'IBAN']);
+      if (cdtrIban) {
+        const ibanIssue = this.validateIban(cdtrIban);
+        if (ibanIssue === 'format') {
+          this.addError(errors, 'error', `${path}: Invalid Creditor IBAN format: ${cdtrIban}`, 'IBAN', `${path}/CdtrAcct/IBAN`);
+        } else if (ibanIssue === 'checksum') {
+          this.addError(errors, 'warning', `${path}: Creditor IBAN checksum failed: ${cdtrIban}`, 'IBAN', `${path}/CdtrAcct/IBAN`);
+        }
       }
 
-      // Validate BIC codes
-      const dbtrBic = txn.querySelector('DbtrAgt FinInstnId BICOrBEI')?.textContent;
+      const dbtrBic = this.getNestedText(txn, ['DbtrAgt', 'FinInstnId', 'BICOrBEI']);
       if (dbtrBic && !this.BIC_PATTERN.test(dbtrBic)) {
-        errors.push({
-          level: 'warning',
-          message: `${path}: Invalid Debtor BIC format: ${dbtrBic}`,
-          element: 'BICOrBEI'
-        });
+        this.addError(errors, 'warning', `${path}: Invalid Debtor BIC format: ${dbtrBic}`, 'BICOrBEI', `${path}/DbtrAgt/FinInstnId/BICOrBEI`);
       }
 
-      const cdtrBic = txn.querySelector('CdtrAgt FinInstnId BICOrBEI')?.textContent;
+      const cdtrBic = this.getNestedText(txn, ['CdtrAgt', 'FinInstnId', 'BICOrBEI']);
       if (cdtrBic && !this.BIC_PATTERN.test(cdtrBic)) {
-        errors.push({
-          level: 'warning',
-          message: `${path}: Invalid Creditor BIC format: ${cdtrBic}`,
-          element: 'BICOrBEI'
-        });
+        this.addError(errors, 'warning', `${path}: Invalid Creditor BIC format: ${cdtrBic}`, 'BICOrBEI', `${path}/CdtrAgt/FinInstnId/BICOrBEI`);
       }
     }
 
-    return errors;
+    return { errors, totalAmount: transactions.length ? totalAmount : undefined, transactionCount: transactions.length };
   }
 
-  private extractText(xmlDoc: Document, tagName: string): string | undefined {
-    return xmlDoc.getElementsByTagName(tagName)[0]?.textContent || undefined;
+  private extractText(node: Document | Element, tagName: string): string | undefined {
+    return this.getFirstElement(node, tagName)?.textContent?.trim() || undefined;
   }
 
-  private extractNumber(xmlDoc: Document, tagName: string): number | undefined {
-    const value = this.extractText(xmlDoc, tagName);
-    return value ? Number(value) : undefined;
+  private extractNumber(node: Document | Element, tagName: string): number | undefined {
+    const value = this.extractText(node, tagName);
+    return value !== undefined && value !== null ? Number(value) : undefined;
+  }
+
+  private addError(
+    list: ValidationError[],
+    level: 'error' | 'warning' | 'info',
+    message: string,
+    element?: string,
+    path?: string
+  ): void {
+    list.push({ level, message, element, path });
+  }
+
+  private getElements(node: Document | Element, localName: string): Element[] {
+    const list = (node as any).getElementsByTagNameNS
+      ? (node as any).getElementsByTagNameNS('*', localName)
+      : (node as any).getElementsByTagName(localName);
+    return Array.from(list as NodeListOf<Element>);
+  }
+
+  private getFirstElement(node: Document | Element, localName: string): Element | undefined {
+    return this.getElements(node, localName)[0];
+  }
+
+  private getNestedText(node: Document | Element, path: string[]): string | undefined {
+    let current: Document | Element | undefined = node;
+    for (const segment of path) {
+      current = current ? this.getFirstElement(current, segment) : undefined;
+      if (!current) return undefined;
+    }
+    return (current as Element).textContent?.trim() || undefined;
+  }
+
+  private validateIban(iban: string): 'ok' | 'format' | 'checksum' {
+    const normalized = iban.replace(/\s+/g, '').toUpperCase();
+    if (!this.IBAN_PATTERN.test(normalized)) return 'format';
+
+    const rearranged = normalized.slice(4) + normalized.slice(0, 4);
+    const expanded = rearranged.replace(/[A-Z]/g, (c) => (c.charCodeAt(0) - 55).toString());
+
+    let remainder = 0n;
+    for (let i = 0; i < expanded.length; i += 9) {
+      const block = `${remainder}${expanded.slice(i, i + 9)}`;
+      remainder = BigInt(block) % 97n;
+    }
+
+    return remainder === 1n ? 'ok' : 'checksum';
+  }
+
+  private getDepth(node: Element, currentDepth: number = 1): number {
+    let maxDepth = currentDepth;
+    for (let i = 0; i < node.childNodes.length; i++) {
+      const child = node.childNodes[i];
+      if (child.nodeType === Node.ELEMENT_NODE) {
+        const childDepth = this.getDepth(child as Element, currentDepth + 1);
+        maxDepth = Math.max(maxDepth, childDepth);
+      }
+    }
+    return maxDepth;
   }
 }

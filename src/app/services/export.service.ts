@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { ValidationResult } from './pacs008-validator.service';
+import { ValidationResult } from './ValidationResult';
 
 export interface ValidationReport {
   timestamp: string;
