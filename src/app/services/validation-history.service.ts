@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { ValidationResult } from './ValidationResult';
+import { ValidationResult } from '../models/ValidationResult';
 
 export interface HistoryEntry {
   id: string;

@@ -1,7 +1,7 @@
 import { Component, signal, ChangeDetectionStrategy, computed, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Pacs008ValidatorService } from '../services/pacs008-validator.service';
-import { ValidationResult } from '../services/ValidationResult';
+import { ValidationResult } from '../models/ValidationResult';
 import { ValidationHistoryService } from '../services/validation-history.service';
 import { SampleMessagesService } from '../services/sample-messages.service';
 import { ExportService } from '../services/export.service';

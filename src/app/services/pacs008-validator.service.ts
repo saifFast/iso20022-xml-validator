@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
-import { ValidationError } from './ValidationError';
-import { ValidationResult } from './ValidationResult';
+import { ValidationError } from '../models/ValidationError';
+import { ValidationResult } from '../models/ValidationResult';
 
 @Injectable({
   providedIn: 'root'
