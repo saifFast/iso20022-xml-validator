@@ -1,18 +1,13 @@
 import { Injectable } from '@angular/core';
+import { SampleMessage } from '../models/sample-message';
 
-export interface SampleMessage {
-  id: string;
-  name: string;
-  description: string;
-  content: string;
-  category: 'valid' | 'invalid' | 'warning';
-}
+export type { SampleMessage } from '../models/sample-message';
 
 @Injectable({
   providedIn: 'root'
 })
 export class SampleMessagesService {
-  
+
   private samples: SampleMessage[] = [
     {
       id: 'valid-basic',
@@ -120,27 +115,11 @@ export class SampleMessagesService {
         <Amt>
           <InstdAmt Ccy="EUR">3000.00</InstdAmt>
         </Amt>
-        <Dbtr>
-          <Nm>ABC Corporation</Nm>
-        </Dbtr>
-        <DbtrAcct>
-          <Id>
-            <IBAN>DE89370400440618263511</IBAN>
-          </Id>
-        </DbtrAcct>
-        <CdtrAgt>
-          <FinInstnId>
-            <BICOrBEI>BNAGDE66</BICOrBEI>
-          </FinInstnId>
-        </CdtrAgt>
-        <Cdtr>
-          <Nm>XYZ GmbH</Nm>
-        </Cdtr>
-        <CdtrAcct>
-          <Id>
-            <IBAN>DE27600000000013000000</IBAN>
-          </Id>
-        </CdtrAcct>
+        <Dbtr><Nm>ABC Corporation</Nm></Dbtr>
+        <DbtrAcct><Id><IBAN>DE89370400440618263511</IBAN></Id></DbtrAcct>
+        <CdtrAgt><FinInstnId><BICOrBEI>BNAGDE66</BICOrBEI></FinInstnId></CdtrAgt>
+        <Cdtr><Nm>XYZ GmbH</Nm></Cdtr>
+        <CdtrAcct><Id><IBAN>DE27600000000013000000</IBAN></Id></CdtrAcct>
       </CdtTrfTxInf>
       <CdtTrfTxInf>
         <PmtId>
@@ -150,27 +129,11 @@ export class SampleMessagesService {
         <Amt>
           <InstdAmt Ccy="EUR">2500.00</InstdAmt>
         </Amt>
-        <Dbtr>
-          <Nm>ABC Corporation</Nm>
-        </Dbtr>
-        <DbtrAcct>
-          <Id>
-            <IBAN>DE89370400440618263511</IBAN>
-          </Id>
-        </DbtrAcct>
-        <CdtrAgt>
-          <FinInstnId>
-            <BICOrBEI>BALADEDE</BICOrBEI>
-          </FinInstnId>
-        </CdtrAgt>
-        <Cdtr>
-          <Nm>DEF Ltd</Nm>
-        </Cdtr>
-        <CdtrAcct>
-          <Id>
-            <IBAN>DE42600000000013000001</IBAN>
-          </Id>
-        </CdtrAcct>
+        <Dbtr><Nm>ABC Corporation</Nm></Dbtr>
+        <DbtrAcct><Id><IBAN>DE89370400440618263511</IBAN></Id></DbtrAcct>
+        <CdtrAgt><FinInstnId><BICOrBEI>BALADEDE</BICOrBEI></FinInstnId></CdtrAgt>
+        <Cdtr><Nm>DEF Ltd</Nm></Cdtr>
+        <CdtrAcct><Id><IBAN>DE42600000000013000001</IBAN></Id></CdtrAcct>
       </CdtTrfTxInf>
     </PmtInf>
   </FIToFICstmrCdtTrfInitn>
@@ -223,22 +186,10 @@ export class SampleMessagesService {
         <Amt>
           <InstdAmt Ccy="USD">1000.00</InstdAmt>
         </Amt>
-        <Dbtr>
-          <Nm>John Doe</Nm>
-        </Dbtr>
-        <DbtrAcct>
-          <Id>
-            <IBAN>INVALID123</IBAN>
-          </Id>
-        </DbtrAcct>
-        <Cdtr>
-          <Nm>Jane Smith</Nm>
-        </Cdtr>
-        <CdtrAcct>
-          <Id>
-            <IBAN>ALSO-INVALID</IBAN>
-          </Id>
-        </CdtrAcct>
+        <Dbtr><Nm>John Doe</Nm></Dbtr>
+        <DbtrAcct><Id><IBAN>INVALID123</IBAN></Id></DbtrAcct>
+        <Cdtr><Nm>Jane Smith</Nm></Cdtr>
+        <CdtrAcct><Id><IBAN>ALSO-INVALID</IBAN></Id></CdtrAcct>
       </CdtTrfTxInf>
     </PmtInf>
   </FIToFICstmrCdtTrfInitn>
@@ -246,30 +197,18 @@ export class SampleMessagesService {
     }
   ];
 
-  /**
-   * Get all available sample messages
-   */
   getAllSamples(): SampleMessage[] {
     return this.samples;
   }
 
-  /**
-   * Get sample by ID
-   */
   getSampleById(id: string): SampleMessage | undefined {
     return this.samples.find(s => s.id === id);
   }
 
-  /**
-   * Get samples by category
-   */
   getSamplesByCategory(category: 'valid' | 'invalid' | 'warning'): SampleMessage[] {
     return this.samples.filter(s => s.category === category);
   }
 
-  /**
-   * Get random sample
-   */
   getRandomSample(): SampleMessage {
     return this.samples[Math.floor(Math.random() * this.samples.length)];
   }

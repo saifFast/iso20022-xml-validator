@@ -1,0 +1,16 @@
+<div class="samples-section">
+  <h2>Sample Messages</h2>
+  <p class="section-description">Click to load a sample PACS.008 message</p>
+  <div class="samples-grid">
+    @for (sample of samples; track sample.id) {
+      <div class="sample-card" [class]="sample.category">
+        <div class="sample-header">
+          <h3>{{ sample.name }}</h3>
+          <span class="category-badge" [class]="sample.category">{{ sample.category }}</span>
+        </div>
+        <p>{{ sample.description }}</p>
+        <button (click)="sampleSelected.emit(sample.id)" class="sample-btn" type="button">Load Sample</button>
+      </div>
+    }
+  </div>
+</div>

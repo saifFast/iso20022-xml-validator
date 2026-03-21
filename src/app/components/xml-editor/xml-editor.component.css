@@ -1,0 +1,134 @@
+.upload-box,
+.paste-box {
+  background: var(--surface-color);
+  padding: 28px;
+  border: 2px solid var(--border-color);
+  border-radius: 12px;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.3s ease;
+}
+
+.upload-box:hover,
+.paste-box:hover {
+  border-color: var(--primary-color);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.upload-box h2,
+.paste-box h2 {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 16px 0;
+  color: var(--text-primary);
+}
+
+.help-text {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: 12px 0 0 0;
+}
+
+input[type="file"] {
+  display: block;
+  width: 100%;
+  padding: 12px;
+  border: 2px dashed var(--primary-color);
+  border-radius: 8px;
+  background: rgba(29, 155, 240, 0.05);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+input[type="file"]:hover {
+  background: rgba(29, 155, 240, 0.1);
+}
+
+textarea {
+  width: 100%;
+  min-height: 200px;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 13px;
+  border: 2px solid var(--border-color);
+  border-radius: 8px;
+  padding: 12px;
+  resize: vertical;
+  transition: all 0.3s ease;
+  background: var(--surface-color);
+  color: var(--text-primary);
+  line-height: 1.5;
+}
+
+textarea:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(29, 155, 240, 0.1);
+}
+
+.divider {
+  text-align: center;
+  color: var(--text-secondary);
+  font-weight: 500;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 8px 0;
+}
+
+.divider::before,
+.divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border-color);
+}
+
+.validate-btn {
+  padding: 14px 40px;
+  font-size: 16px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #1D9BF0 0%, #1a8cd8 100%);
+  color: white;
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(29, 155, 240, 0.3);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  align-self: flex-start;
+}
+
+.validate-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(29, 155, 240, 0.4);
+}
+
+.validate-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.validate-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+@media (max-width: 640px) {
+  .upload-box,
+  .paste-box {
+    padding: 20px;
+  }
+
+  textarea {
+    min-height: 150px;
+    font-size: 14px;
+  }
+
+  .validate-btn {
+    width: 100%;
+    text-align: center;
+  }
+}

@@ -1,0 +1,30 @@
+<div class="format-section">
+  <h2>XML Formatter & Tools</h2>
+  <div class="format-tools">
+    <button (click)="onFormat()" [disabled]="!xmlContent" class="format-btn primary" type="button">✨ Pretty Print</button>
+    <button (click)="onMinify()" [disabled]="!xmlContent" class="format-btn" type="button">📦 Minify</button>
+  </div>
+
+  @if (xmlStats()) {
+    <div class="stats-box">
+      <h3>XML Statistics</h3>
+      <div class="stats-grid">
+        <div class="stat-item"><span class="stat-label">Elements</span><span class="stat-value">{{ xmlStats()!.elementCount }}</span></div>
+        <div class="stat-item"><span class="stat-label">Attributes</span><span class="stat-value">{{ xmlStats()!.attributeCount }}</span></div>
+        <div class="stat-item"><span class="stat-label">Text Nodes</span><span class="stat-value">{{ xmlStats()!.textNodes }}</span></div>
+        <div class="stat-item"><span class="stat-label">Depth</span><span class="stat-value">{{ xmlStats()!.depth }}</span></div>
+        <div class="stat-item"><span class="stat-label">Size</span><span class="stat-value">{{ xmlStats()!.sizeKB }} KB</span></div>
+      </div>
+    </div>
+  }
+
+  @if (formattedXml()) {
+    <div class="formatted-section">
+      <div class="formatted-header">
+        <h3>Formatted Result</h3>
+        <button (click)="onUseFormatted()" class="use-btn" type="button">✓ Use This</button>
+      </div>
+      <textarea [value]="formattedXml()" class="formatted-xml" readonly rows="15"></textarea>
+    </div>
+  }
+</div>

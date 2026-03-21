@@ -1,0 +1,44 @@
+<div class="history-section">
+  <div class="history-header">
+    <div>
+      <h2>Validation History</h2>
+      <div class="history-stats">
+        <div class="stat"><strong>{{ stats.totalValidations }}</strong><span>Total Validations</span></div>
+        <div class="stat"><strong style="color: #10b981;">{{ stats.validMessages }}</strong><span>Valid</span></div>
+        <div class="stat"><strong style="color: #ef4444;">{{ stats.invalidMessages }}</strong><span>Invalid</span></div>
+        <div class="stat"><strong>{{ stats.successRate }}%</strong><span>Success Rate</span></div>
+      </div>
+    </div>
+    @if (history.length > 0) {
+      <button (click)="clearHistory.emit()" class="clear-btn" type="button">🗑️ Clear All</button>
+    }
+  </div>
+
+  @if (history.length > 0) {
+    <div class="history-list">
+      @for (entry of history; track entry.id) {
+        <div class="history-item" [class]="entry.isValid ? 'valid' : 'invalid'">
+          <div class="history-info">
+            <p class="history-time">{{ entry.timestamp | date:'short' }}</p>
+            @if (entry.messageId) { <p class="history-id">ID: <code>{{ entry.messageId }}</code></p> }
+            <p class="history-status">
+              @if (entry.isValid) {
+                <span class="badge-mini valid">✓ Valid</span>
+              } @else {
+                <span class="badge-mini invalid">✗ Invalid</span>
+              }
+            </p>
+          </div>
+          <div class="history-actions">
+            <button (click)="loadEntry.emit(entry.id)" class="history-btn load" type="button">📂 Load</button>
+            <button (click)="deleteEntry.emit(entry.id)" class="history-btn delete" type="button">🗑️</button>
+          </div>
+        </div>
+      }
+    </div>
+  } @else {
+    <div class="empty-state">
+      <p>No validation history yet. Start validating to build your history.</p>
+    </div>
+  }
+</div>

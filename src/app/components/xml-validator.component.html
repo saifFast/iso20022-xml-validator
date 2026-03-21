@@ -21,65 +21,61 @@
 
   <div class="tabs">
     <button class="tab-button" [class.active]="activeTab() === 'validate'" (click)="switchTab('validate')" type="button">✓ Validator</button>
-    <button class="tab-button" [class.active]="activeTab() === 'samples'" (click)="switchTab('samples')" type="button">📚 Samples</button>
-    <button class="tab-button" [class.active]="activeTab() === 'format'" (click)="switchTab('format')" type="button">🎨 Format</button>
-    <button class="tab-button" [class.active]="activeTab() === 'history'" (click)="switchTab('history')" type="button">📋 History <span class="badge">{{ history().length }}</span></button>
+    <button class="tab-button" [class.active]="activeTab() === 'samples'"  (click)="switchTab('samples')"  type="button">📚 Samples</button>
+    <button class="tab-button" [class.active]="activeTab() === 'format'"   (click)="switchTab('format')"   type="button">🎨 Format</button>
+    <button class="tab-button" [class.active]="activeTab() === 'history'"  (click)="switchTab('history')"  type="button">
+      📋 History <span class="badge">{{ history().length }}</span>
+    </button>
   </div>
 
   <div class="input-section">
     @if (errorMessage()) {
-      <div class="error-banner"><span class="error-icon">⚠️</span><span>{{ errorMessage() }}</span></div>
+      <div class="error-banner">
+        <span class="error-icon">⚠️</span>
+        <span>{{ errorMessage() }}</span>
+      </div>
     }
 
     @if (activeTab() === 'validate') {
-      <div class="upload-box"><h2>📁 Upload XML File</h2><input type="file" accept=".xml" (change)="onFileSelected($event)" #fileInput aria-label="Upload XML file"/><p class="help-text">Select an XML file from your computer (Max 5MB)</p></div>
-      <div class="divider">OR</div>
-      <div class="paste-box"><h2>📝 Paste XML Content</h2><textarea [value]="xmlContent()" (input)="onXmlContentChange($event)" placeholder="Paste your XML content here..." rows="12" aria-label="XML content input"></textarea><p class="help-text">Paste your ISO 20022 PACS.008 XML message</p></div>
-      <button (click)="validate()" [disabled]="!xmlContent() || isValidating()" class="validate-btn" type="button">@if (isValidating()) { ⏳ Validating... } @else { ✓ Validate XML }</button>
-      @if (validationResult()) {
-        <div class="results" [class.valid]="validationResult()!.isValid">
-          <div class="result-header"><h3>@if (validationResult()!.isValid) { <span class="badge success">✓ Valid Message</span> } @else { <span class="badge error">✗ Invalid Message</span> }</h3></div>
-          @if (validationResult()!.messageId || validationResult()!.transactionCount || validationResult()!.totalAmount) {
-            <div class="message-info">
-              @if (validationResult()!.messageId) { <p><strong>Message ID:</strong> <code>{{ validationResult()!.messageId }}</code></p> }
-              @if (validationResult()!.creationDateTime) { <p><strong>Created:</strong> {{ validationResult()!.creationDateTime }}</p> }
-              @if (validationResult()!.transactionCount) { <p><strong>Transactions:</strong> {{ validationResult()!.transactionCount }}</p> }
-              @if (validationResult()!.totalAmount) { <p><strong>Total Amount:</strong> {{ validationResult()!.totalAmount }}</p> }
-            </div>
-          }
-          @if (validationResult()!.errors.length > 0) {
-            <div class="errors"><h4><span class="error-count">{{ validationResult()!.errors.length }}</span> @if (validationResult()!.errors.length === 1) { Issue Found } @else { Issues Found }</h4>
-              <ul class="error-list">
-                @for (error of validationResult()!.errors; track $index) {
-                  <li [class]="error.level"><span class="error-icon">@switch (error.level) { @case ('error') { ⚠️ } @case ('warning') { ⚡ } @case ('info') { ℹ️ }}</span><span class="error-message">{{ error.message }}</span>@if (error.element) { <code class="error-element">{{ error.element }}</code> }</li>
-                }
-              </ul>
-            </div>
-          } @else if (validationResult()!.isValid) {
-            <div class="success-message"><p>🎉 Your XML message is valid and ready to use!</p></div>
-          }
-          @if (validationResult()) {
-            <div class="export-options"><h4>Download Report</h4><div class="button-group"><button (click)="exportJson()" class="export-btn" type="button">📄 JSON</button><button (click)="exportCsv()" class="export-btn" type="button">📊 CSV</button><button (click)="exportHtml()" class="export-btn" type="button">🌐 HTML</button><button (click)="copyXmlToClipboard()" class="export-btn" type="button">📋 Copy XML</button></div></div>
-          }
-        </div>
-      }
+      <app-xml-editor
+        [xmlContent]="xmlContent()"
+        [isValidating]="isValidating()"
+        (xmlContentChange)="onXmlContentChange($event)"
+        (fileError)="onFileError($event)"
+        (validate)="onValidate()"
+      />
+      <app-validation-result
+        [result]="validationResult()"
+        (exportJson)="exportJson()"
+        (exportCsv)="exportCsv()"
+        (exportHtml)="exportHtml()"
+        (copyXml)="copyXmlToClipboard()"
+      />
     }
 
     @if (activeTab() === 'samples') {
-      <div class="samples-section"><h2>Sample Messages</h2><p class="section-description">Click to load a sample PACS.008 message</p><div class="samples-grid">@for (sample of samples; track sample.id) { <div class="sample-card" [class]="sample.category"><div class="sample-header"><h3>{{ sample.name }}</h3><span class="category-badge" [class]="sample.category">{{ sample.category }}</span></div><p>{{ sample.description }}</p><button (click)="loadSample(sample.id)" class="sample-btn" type="button">Load Sample</button></div> }</div></div>
+      <app-sample-messages
+        [samples]="samples"
+        (sampleSelected)="loadSample($event)"
+      />
     }
 
     @if (activeTab() === 'format') {
-      <div class="format-section"><h2>XML Formatter & Tools</h2><div class="format-tools"><button (click)="formatXml()" [disabled]="!xmlContent()" class="format-btn primary" type="button">✨ Pretty Print</button><button (click)="minifyXml()" [disabled]="!xmlContent()" class="format-btn" type="button">📦 Minify</button></div>
-        @if (xmlStats()) {<div class="stats-box"><h3>XML Statistics</h3><div class="stats-grid"><div class="stat-item"><span class="stat-label">Elements</span><span class="stat-value">{{ xmlStats().elementCount }}</span></div><div class="stat-item"><span class="stat-label">Attributes</span><span class="stat-value">{{ xmlStats().attributeCount }}</span></div><div class="stat-item"><span class="stat-label">Text Nodes</span><span class="stat-value">{{ xmlStats().textNodes }}</span></div><div class="stat-item"><span class="stat-label">Depth</span><span class="stat-value">{{ xmlStats().depth }}</span></div><div class="stat-item"><span class="stat-label">Size</span><span class="stat-value">{{ xmlStats().sizeKB }} KB</span></div></div></div>}
-        @if (formattedXml()) {<div class="formatted-section"><div class="formatted-header"><h3>Formatted Result</h3><button (click)="useFormattedXml()" class="use-btn" type="button">✓ Use This</button></div><textarea [value]="formattedXml()" class="formatted-xml" readonly rows="15"></textarea></div>}
-      </div>
+      <app-xml-formatter
+        [xmlContent]="xmlContent()"
+        (xmlContentChange)="xmlContent.set($event)"
+        (formatterError)="errorMessage.set($event)"
+      />
     }
 
     @if (activeTab() === 'history') {
-      <div class="history-section"><div class="history-header"><div><h2>Validation History</h2><div class="history-stats"><div class="stat"><strong>{{ historyStats().totalValidations }}</strong><span>Total Validations</span></div><div class="stat"><strong style="color: #10b981;">{{ historyStats().validMessages }}</strong><span>Valid</span></div><div class="stat"><strong style="color: #ef4444;">{{ historyStats().invalidMessages }}</strong><span>Invalid</span></div><div class="stat"><strong>{{ historyStats().successRate }}%</strong><span>Success Rate</span></div></div></div>@if (history().length > 0) { <button (click)="clearHistory()" class="clear-btn" type="button">🗑️ Clear All</button> }</div>
-        @if (history().length > 0) {<div class="history-list">@for (entry of history(); track entry.id) { <div class="history-item" [class]="entry.isValid ? 'valid' : 'invalid'"><div class="history-info"><p class="history-time">{{ entry.timestamp | date:'short' }}</p>@if (entry.messageId) { <p class="history-id">ID: <code>{{ entry.messageId }}</code></p> }<p class="history-status">@if (entry.isValid) { <span class="badge-mini valid">✓ Valid</span> } @else { <span class="badge-mini invalid">✗ Invalid</span> }</p></div><div class="history-actions"><button (click)="loadFromHistory(entry.id)" class="history-btn load" type="button">📂 Load</button><button (click)="deleteHistoryEntry(entry.id)" class="history-btn delete" type="button">🗑️</button></div></div> }</div>} @else {<div class="empty-state"><p>No validation history yet. Start validating to build your history.</p></div>}
-      </div>
+      <app-validation-history
+        [history]="history()"
+        [stats]="historyStats()"
+        (loadEntry)="loadFromHistory($event)"
+        (deleteEntry)="deleteHistoryEntry($event)"
+        (clearHistory)="clearHistory()"
+      />
     }
   </div>
 </div>

@@ -1,4 +1,4 @@
-import { Component, signal, ChangeDetectionStrategy } from '@angular/core';
+import { Component, ChangeDetectionStrategy } from '@angular/core';
 import { XmlValidatorComponent } from './components/xml-validator.component';
 
 @Component({
@@ -8,6 +8,4 @@ import { XmlValidatorComponent } from './components/xml-validator.component';
   styleUrl: './app.css',
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class App {
-  protected readonly title = signal('');
-}
+export class App {}

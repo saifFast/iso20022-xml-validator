@@ -1,0 +1,58 @@
+@if (result) {
+  <div class="results" [class.valid]="result.isValid">
+    <div class="result-header">
+      <h3>
+        @if (result.isValid) {
+          <span class="badge success">✓ Valid Message</span>
+        } @else {
+          <span class="badge error">✗ Invalid Message</span>
+        }
+      </h3>
+    </div>
+
+    @if (result.messageId || result.transactionCount || result.totalAmount) {
+      <div class="message-info">
+        @if (result.messageId) { <p><strong>Message ID:</strong> <code>{{ result.messageId }}</code></p> }
+        @if (result.creationDateTime) { <p><strong>Created:</strong> {{ result.creationDateTime }}</p> }
+        @if (result.transactionCount) { <p><strong>Transactions:</strong> {{ result.transactionCount }}</p> }
+        @if (result.totalAmount) { <p><strong>Total Amount:</strong> {{ result.totalAmount }}</p> }
+      </div>
+    }
+
+    @if (result.errors.length > 0) {
+      <div class="errors">
+        <h4>
+          <span class="error-count">{{ result.errors.length }}</span>
+          @if (result.errors.length === 1) { Issue Found } @else { Issues Found }
+        </h4>
+        <ul class="error-list">
+          @for (error of result.errors; track $index) {
+            <li [class]="error.level">
+              <span class="error-icon">
+                @switch (error.level) {
+                  @case ('error') { ⚠️ }
+                  @case ('warning') { ⚡ }
+                  @case ('info') { ℹ️ }
+                }
+              </span>
+              <span class="error-message">{{ error.message }}</span>
+              @if (error.element) { <code class="error-element">{{ error.element }}</code> }
+            </li>
+          }
+        </ul>
+      </div>
+    } @else if (result.isValid) {
+      <div class="success-message"><p>🎉 Your XML message is valid and ready to use!</p></div>
+    }
+
+    <div class="export-options">
+      <h4>Download Report</h4>
+      <div class="button-group">
+        <button (click)="exportJson.emit()" class="export-btn" type="button">📄 JSON</button>
+        <button (click)="exportCsv.emit()" class="export-btn" type="button">📊 CSV</button>
+        <button (click)="exportHtml.emit()" class="export-btn" type="button">🌐 HTML</button>
+        <button (click)="copyXml.emit()" class="export-btn" type="button">📋 Copy XML</button>
+      </div>
+    </div>
+  </div>
+}

@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { ValidationError } from '../models/ValidationError';
 import { ValidationResult } from '../models/ValidationResult';
+import { getElements, getFirstElement } from '../utils/xml-dom.utils';
 
 @Injectable({
   providedIn: 'root'
@@ -272,16 +273,8 @@ export class Pacs008ValidatorService {
     list.push({ level, message, element, path });
   }
 
-  private getElements(node: Document | Element, localName: string): Element[] {
-    const list = (node as any).getElementsByTagNameNS
-      ? (node as any).getElementsByTagNameNS('*', localName)
-      : (node as any).getElementsByTagName(localName);
-    return Array.from(list as NodeListOf<Element>);
-  }
-
-  private getFirstElement(node: Document | Element, localName: string): Element | undefined {
-    return this.getElements(node, localName)[0];
-  }
+  private getElements = getElements;
+  private getFirstElement = getFirstElement;
 
   private getNestedText(node: Document | Element, path: string[]): string | undefined {
     let current: Document | Element | undefined = node;
